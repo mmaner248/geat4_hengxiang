@@ -40,6 +40,8 @@
 #include "G4LogicalVolume.hh"
 #include "G4UnitsTable.hh"
 #include "G4SystemOfUnits.hh"
+#include "PkaRecorder.hh"
+
 
 namespace B1
 {
@@ -83,7 +85,10 @@ void RunAction::BeginOfRunAction(const G4Run*)
   // reset accumulables to their initial values
   G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
   accumulableManager->Reset();
-
+  // 只在 master 线程打开文件（多线程安全的第一步）
+  if (IsMaster()) {
+      PkaRecorder::Instance()->OpenEventFile("pka_events.txt");
+  }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -188,7 +193,9 @@ void RunAction::EndOfRunAction(const G4Run* run)
   //   << G4endl
   //   << "--------------------End of Local Run------------------------";
   //}
-
+    if (IsMaster()) {
+        PkaRecorder::Instance()->CloseEventFile();
+    }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

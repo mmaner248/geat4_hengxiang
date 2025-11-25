@@ -43,6 +43,7 @@
 #include "G4SystemOfUnits.hh"
 #include "G4UserLimits.hh"
 #include "G4Polyhedra.hh"
+#include "PkaRecorder.hh"   
 namespace B1
 {
 
@@ -133,6 +134,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   G4double cell_sizeX = env_sizeX/nx;
   G4double cell_sizeY = env_sizeY/ny;
   G4double cell_sizeZ = env_sizeZ/nz;
+  // 告诉 PkaRecorder 网格信息
+  PkaRecorder::Instance()->InitializeGrid(nx, ny, nz,env_sizeX, env_sizeY, env_sizeZ);
   // its solid volume
   auto solidcell = new G4Box("solidcell",                    // its name
       0.5 * cell_sizeX, 0.5 * cell_sizeY, 0.5 * cell_sizeZ);  // its size
