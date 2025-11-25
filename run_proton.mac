@@ -1,0 +1,14 @@
+# Macro file for example B1
+
+/run/initialize
+
+/control/verbose 2
+/run/verbose 2
+
+# neutron beam, e.g. 2 MeV or 14 MeV，看你要啥谱
+/gun/particle neutron
+/gun/energy 2 MeV      # 能量随便取先
+
+/run/printProgress 100
+/run/beamOn 2000       # 总共 2000 event，全是中子
+
