@@ -66,11 +66,13 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   peek->AddElement(H, natoms = 12);
   peek->AddElement(C, natoms = 19);
   peek->AddElement(O, natoms = 3);
+  G4Material* shimo = new G4Material("shimo", density = 1.80 * g / cm3, ncomponents = 1);
+  shimo->AddElement(C, natoms = 1);
   //G4Material* fDefaultMaterial = nist->FindOrBuildMaterial("G4_Galactic");
 
   // Option to switch on/off checking of volumes overlaps
   //
-  G4bool checkOverlaps = false;
+  G4bool checkOverlaps = true;
 
   //
   // World
@@ -110,7 +112,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     0., 0.5 * env_sizeX, 0.5 * env_sizeZ, 0., CLHEP::twopi);  // its size*/
   // its logical volume(array will cause core dumped)
   auto logicalcell =
-    new G4LogicalVolume(solidcell, peek, "logicalcell", nullptr, nullptr, nullptr);
+    new G4LogicalVolume(solidcell, shimo, "logicalcell", nullptr, nullptr, nullptr);
 
   for (G4int iz = 0; iz < nz; iz++) {
     for (G4int copyNo = iz*nxy; copyNo < (iz+1)*nxy; copyNo++) {

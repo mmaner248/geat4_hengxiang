@@ -154,7 +154,7 @@ void RunAction::EndOfRunAction(const G4Run* run)
 	std::ofstream outfile;
   if (IsMaster()) {
 	G4cout<<" zzw " << nofEvents <<G4endl;
-  	outfile.open("/home/zw/geant4_workspace/B1/dev-build/cs.txt");
+  	outfile.open("build\\shimo.txt");
     G4cout
      << G4endl
      << "--------------------End of Global Run-----------------------";
