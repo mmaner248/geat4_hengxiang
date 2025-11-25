@@ -33,7 +33,7 @@
 #include "G4VUserDetectorConstruction.hh"
 #include "Constants.hh"
 #include "globals.hh"
-
+#include <array>
 class G4VPhysicalVolume;
 class G4LogicalVolume;
 class G4UserLimits;

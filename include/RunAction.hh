@@ -34,7 +34,7 @@
 #include "G4Accumulable.hh"
 #include "globals.hh"
 #include "Constants.hh"
-
+#include <array>
 class G4Run;
 class G4Box;
 
