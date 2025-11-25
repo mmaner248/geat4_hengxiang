@@ -167,12 +167,12 @@ void RunAction::EndOfRunAction(const G4Run* run)
        	<< " Energy deposited "
        	//<< G4BestUnit(dose,"Dose") << " rms = " << G4BestUnit(rmsDose,"Dose")
        	<< fEdep[copyNo].GetValue()/MeV << " Absorbed dose "
-       	<< dose[copyNo]   << " Probabilityqj "
-  		<< pbond1[copyNo] << " Probabilityty1 "
-  		<< pbond2[copyNo] << " Probabilitybm "
-  		<< pbond3[copyNo] << " Probabilitycc "
-  		<< pbond4[copyNo] << " Probabilityty2 "
-  		<< pbond5[copyNo]
+       	<< dose[copyNo]   //<< " Probabilityqj "
+  		//<< pbond1[copyNo] << " Probabilityty1 "
+  		//<< pbond2[copyNo] << " Probabilitybm "
+  		//<< pbond3[copyNo] << " Probabilitycc "
+  		//<< pbond4[copyNo] << " Probabilityty2 "
+  		//<< pbond5[copyNo]
         /*<< fEdepeIoni[copyNo].GetValue()/MeV << " eBrem "
         << fEdepeBrem[copyNo].GetValue()/MeV << " msc "
         << fEdepmsc[copyNo].GetValue()/MeV << " compt "
