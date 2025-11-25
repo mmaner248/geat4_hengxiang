@@ -149,7 +149,10 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
   }*/
   /*fParticleGun->SetParticleMomentumDirection(
     G4ThreeVector(std::cos(phi) * std::sin(theta), std::sin(phi), std::cos(phi) * std::cos(theta)));*/
-
+  G4ThreeVector dir(std::sin(theta) * std::cos(phi),
+      std::sin(theta) * std::sin(phi),
+      std::cos(theta));
+  fParticleGun->SetParticleMomentumDirection(dir);
   fParticleGun->GeneratePrimaryVertex(anEvent);
 }
 
