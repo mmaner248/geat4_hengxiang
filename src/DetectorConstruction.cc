@@ -26,7 +26,7 @@
 //
 /// \file B1/src/DetectorConstruction.cc
 /// \brief Implementation of the B1::DetectorConstruction class
-
+#include "G4PhysicalConstants.hh"
 #include "DetectorConstruction.hh"
 #include "G4Material.hh"
 #include "G4RunManager.hh"
@@ -42,7 +42,7 @@
 #include "G4PVReplica.hh"
 #include "G4SystemOfUnits.hh"
 #include "G4UserLimits.hh"
-
+#include "G4Polyhedra.hh"
 namespace B1
 {
 
@@ -77,10 +77,14 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   //
   // World
   //
-  G4double world_sizeX = 2.*env_sizeX;
-  G4double world_sizeY = 2.*env_sizeY;
-  G4double world_sizeZ = 2.*env_sizeZ;
+  G4double world_sizeX = 6.*env_sizeX;
+  G4double world_sizeY = 6.*env_sizeY;
+  G4double world_sizeZ = 6.*env_sizeZ;
   G4Material* world_mat = nist->FindOrBuildMaterial("G4_AIR");
+
+
+
+
 
   auto solidWorld = new G4Box("World",                           // its name
     0.5 * world_sizeX, 0.5 * world_sizeY, 0.5 * world_sizeZ);  // its size
@@ -98,6 +102,30 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     0,                                         // copy number
     checkOverlaps);                            // overlaps checking
 
+
+  //建一个六棱柱
+  G4String name = "HexPrism";
+  G4double pistart = 0.0;
+  G4double piend = twopi;
+  G4int numSide = 6;
+  G4double sideLength = 0.5 * cm;
+  G4double apothem = sideLength * std::sqrt(3.0) / 2.0;//六边形的内切圆半径
+  G4double halfH = 1.0 * cm;//高度的一半
+  G4int numZ = 2;//2个z截面确定棱柱形状
+  G4double z_hex[] = { -halfH, halfH };//上下截面的z坐标，高度2*halfH
+  G4double rin[] = { 0.0, 0.0 };//实心棱柱-内部内切圆0
+  G4double rout[] = { apothem, apothem };//外部内切圆半径
+  auto hexsolid = new G4Polyhedra(name, pistart, piend, numSide, numZ, z_hex, rin, rout);
+  auto hexlogical = new G4LogicalVolume(hexsolid, shimo, "HexPrism");
+  G4double pianyi = 1.5 * cm;
+  auto physhex = new G4PVPlacement(nullptr,  // no rotation
+      G4ThreeVector(0,0,pianyi),                           // at (0,0,0)
+      hexlogical,                                // its logical volume
+      "HexPrism",                                   // its name
+      logicWorld,                                   // its mother  volume
+      false,                                     // no boolean operation
+      0,                                         // copy number
+      checkOverlaps);                            // overlaps checking
   //
   // Envelope
   //
@@ -143,6 +171,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   //  G4cout<<" copyNo "<<" x "<<fXCell[i0]/cm<<" y "<<fYCell[i0]/cm<<" z "<<fZCell[i0]/cm<<G4endl;
   //}
   //always return the physical World
+  
+
   return physWorld;
 }
 
