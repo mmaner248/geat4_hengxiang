@@ -9,6 +9,7 @@
 class G4Track;
 namespace B1 {
     // 简单单例，用来记录 PKA 事件
+    //改动，不要用单例模式，每个线程单独一个pkarecorder，这样才能真正并行，不然每个线程都在抢pkarecorder
     class PkaRecorder {
     public:
         static PkaRecorder* Instance();
@@ -39,6 +40,9 @@ namespace B1 {
         G4int    fNx{ 0 }, fNy{ 0 }, fNz{ 0 };
         G4double fEnvX{ 0. }, fEnvY{ 0. }, fEnvZ{ 0. };
         G4double fDx{ 0. }, fDy{ 0. }, fDz{ 0. };
+
+        // 线程局部的实例指针声明
+        static G4ThreadLocal PkaRecorder* fgInstance;
 
         // 写 PKA 事件的输出文件
         std::ofstream fEventOut;

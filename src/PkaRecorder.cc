@@ -7,17 +7,23 @@
 #include "G4SystemOfUnits.hh"
 #include "G4AutoLock.hh"   // Geant4 的自动加锁工具
 #include <cmath>           // 用 std::floor 计算体素索引
+/*
 namespace {
     // 用于保护文件写入的全局互斥锁（多线程用）
-    G4Mutex pkaMutex = G4MUTEX_INITIALIZER;
-}
+    G4Mutex pkaMutex = G4MUTEX_INITIALIZER; 不需要了，我们现在为每个线程创建一个新的ostream，免得线程
+    一直在等待IO
+}*/
 namespace B1 {
-
+    //静态变量在类外初始化，这里为什么要用静态呢，和instance是一个道理，这2个东西是用来产生实例的
+    //那肯定不能靠实例来初始化，所以只能是静态
+    G4ThreadLocal PkaRecorder* PkaRecorder::fgInstance = nullptr;
 
     PkaRecorder* PkaRecorder::Instance()
     {
-        static PkaRecorder instance;
-        return &instance;
+        if (!fgInstance) {
+            fgInstance = new PkaRecorder();
+        }
+        return fgInstance;
     }
 
     PkaRecorder::PkaRecorder() {}
@@ -40,14 +46,28 @@ namespace B1 {
         if (nz > 0) fDz = envZ / nz;
     }
 
-    void PkaRecorder::OpenEventFile(const G4String& filename)
+    void PkaRecorder::OpenEventFile(const G4String& baseName)
     {
-        if (fEventOut.is_open()) fEventOut.close();
+        if (fEventOut.is_open())
+            fEventOut.close();
+
+        // 根据线程 ID 生成文件名
+        std::ostringstream ss;
+        G4int tid = G4Threading::G4GetThreadId();  // worker 一般是 0,1,2...，master 可能是 -1
+
+        if (G4Threading::IsWorkerThread()) {
+            ss << baseName << "_T" << tid << ".dat";
+        }
+        else {
+            ss << baseName << "_master.dat"; // 万一 master 用到了，也有个名
+        }
+
+        G4String filename = ss.str();
 
         fEventOut.open(filename, std::ios::out);
         if (fEventOut) {
             fEventOut << "# eventID trackID  Z  A  Ek_eV   x_mm  y_mm  z_mm  "
-                "ux  uy  uz   ix  iy  iz\n";
+                << "ux  uy  uz\n";
         }
     }
 
@@ -61,10 +81,12 @@ namespace B1 {
 
     void PkaRecorder::RecordPka(const G4Track* track)
     {
-        // 如果 master 没有打开文件，这里直接返回，不做任何事
-        if (!fEventOut.is_open()) return;
+        // 如果这个线程还没打开文件，就打开一个
+        if (!fEventOut.is_open()) {
+            OpenEventFile("pka");   // 每个线程会打开 pka_T<tid>.dat
+        }
 
-        // 先从 track 和 runManager 把所有需要的物理量都取出来
+        // 下面和你原来的一样，只是去掉了锁
         const auto* pd = track->GetDefinition();
         G4int Z = pd->GetAtomicNumber();
         G4int A = pd->GetAtomicMass();
@@ -80,57 +102,21 @@ namespace B1 {
         }
 
         G4int trackID = track->GetTrackID();
-
-        // 能量转成 eV，方便后处理（MD 一般习惯 eV）
         G4double Ek_eV = Ek / eV;
 
-        // 计算体素索引 ix, iy, iz
-        G4int ix = -1, iy = -1, iz = -1;
+        // ... 如果你还要算 ix,iy,iz，这里照旧 ...
+        // 略去体素代码，只保留简单输出：
 
-        if (fNx > 0 && fNy > 0 && fNz > 0 &&
-            fDx > 0. && fDy > 0. && fDz > 0.) {
-
-            // 假设体素盒子中心在 (0,0,0)，范围是 [-fEnvX/2, +fEnvX/2] 等
-            G4double x = pos.x();  // mm
-            G4double y = pos.y();
-            G4double z = pos.z();
-
-            // 平移到 [0, fEnvX] 区间，再除以 cell 尺寸
-            G4double xLocal = x + 0.5 * fEnvX;
-            G4double yLocal = y + 0.5 * fEnvY;
-            G4double zLocal = z + 0.5 * fEnvZ;
-
-            ix = static_cast<G4int>(std::floor(xLocal / fDx));
-            iy = static_cast<G4int>(std::floor(yLocal / fDy));
-            iz = static_cast<G4int>(std::floor(zLocal / fDz));
-
-            // 越界保护：如果不在 [0, nx) 里，就标成 -1
-            if (ix < 0 || ix >= fNx ||
-                iy < 0 || iy >= fNy ||
-                iz < 0 || iz >= fNz) {
-                ix = iy = iz = -1;
-            }
-        }
-
-        // ★ 下面开始是对共享 ofstream 的写操作，要加锁保护（多线程）
-        {
-            G4AutoLock lock(&pkaMutex);   // 作用域锁：离开这个花括号自动解锁
-
-            fEventOut << eventID << " "
-                << trackID << " "
-                << Z << " " << A << " "
-                << Ek_eV << " "
-                << pos.x() / mm << " "
-                << pos.y() / mm << " "
-                << pos.z() / mm << " "
-                << dir.x() << " "
-                << dir.y() << " "
-                << dir.z() << " "
-               // << ix << " "
-                //<< iy << " "
-               // << iz 
-                << "\n";
-        }
+        fEventOut << eventID << " "
+            << trackID << " "
+            << Z << " " << A << " "
+            << Ek_eV << " "
+            << pos.x() / mm << " "
+            << pos.y() / mm << " "
+            << pos.z() / mm << " "
+            << dir.x() << " "
+            << dir.y() << " "
+            << dir.z() << "\n";
     }
 
 }
