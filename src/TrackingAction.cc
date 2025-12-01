@@ -1,6 +1,6 @@
 // TrackingAction.cc
 #include "TrackingAction.hh"
-
+#include "G4PhysicalConstants.hh"
 #include "G4Track.hh"
 #include "PkaRecorder.hh"     // 用来调用 PkaRecorder
 #include "G4SystemOfUnits.hh" //用 eV 这种单位
@@ -27,7 +27,11 @@ namespace B1 {
         if (Ek < 100.0 * eV) {
             return;  // 太低的就先不算 PKA
         }
-
+        G4ThreeVector pos = track->GetPosition();  // mm
+        const auto x = pos.x();
+        const auto y = pos.y();
+        const auto z = pos.z();
+        if((x*x + y*y + z*z)<(0.01*cm*0.01*cm))
         // 4. 通过以上筛选，这条 track 就被认为是 PKA
         PkaRecorder::Instance()->RecordPka(track);
     }
