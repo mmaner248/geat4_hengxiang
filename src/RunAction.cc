@@ -185,6 +185,8 @@ void RunAction::EndOfRunAction(const G4Run* run)
   }
 	outfile.close();
 
+    //run完在各个工作线程单例里面把结果写了
+    if (G4Threading::IsWorkerThread()) PkaRecorder::Instance()->WriteToFile("pka");
   //else {
   //  G4cout
   //   << G4endl

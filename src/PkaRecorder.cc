@@ -1,6 +1,5 @@
 // PkaRecorder.cc
 #include "PkaRecorder.hh"
-
 #include "G4Track.hh"
 #include "G4ParticleDefinition.hh"
 #include "G4RunManager.hh"
@@ -30,9 +29,7 @@ namespace B1 {
 
     PkaRecorder::~PkaRecorder()
     {
-        if (fEventOut.is_open()) {
-            fEventOut.close();
-        }
+
     }
 
     void PkaRecorder::InitializeGrid(G4int nx, G4int ny, G4int nz,
@@ -46,77 +43,88 @@ namespace B1 {
         if (nz > 0) fDz = envZ / nz;
     }
 
-    void PkaRecorder::OpenEventFile(const G4String& baseName)
+
+
+
+
+    void PkaRecorder::RecordPka(const G4Track* track)
     {
-        if (fEventOut.is_open())
-            fEventOut.close();
+        PkaHit hit;
+
+        // 获取粒子信息
+        const auto* pd = track->GetDefinition();
+        hit.Z = pd->GetAtomicNumber();
+        hit.A = pd->GetAtomicMass();
+
+        G4double Ek = track->GetKineticEnergy();   // MeV
+        auto runManager = G4RunManager::GetRunManager();
+        if (runManager && runManager->GetCurrentEvent()) {
+            hit.eventID = runManager->GetCurrentEvent()->GetEventID();
+        }
+
+        hit.trackID = track->GetTrackID();
+        hit.Ek_eV = Ek / eV;
+
+
+        
+        hit.pos = track->GetPosition();            // mm
+        hit.dir = track->GetMomentumDirection();   // 无量纲
+        fHits.push_back(std::move(hit));
+    }
+    // 在 run 结束时调用，一次性写文件
+    void PkaRecorder::WriteToFile(const G4String& baseName)
+    {
+        if (fHits.empty()) {
+            return; // 本线程没记录到任何 PKA，直接跳过
+        }
 
         // 根据线程 ID 生成文件名
         std::ostringstream ss;
-        G4int tid = G4Threading::G4GetThreadId();  // worker 一般是 0,1,2...，master 可能是 -1
+        G4int tid = G4Threading::G4GetThreadId();
 
         if (G4Threading::IsWorkerThread()) {
             ss << baseName << "_T" << tid << ".dat";
         }
         else {
-            ss << baseName << "_master.dat"; // 万一 master 用到了，也有个名
+            ss << baseName << "_master.dat";
         }
 
         G4String filename = ss.str();
 
-        fEventOut.open(filename, std::ios::out);
-        if (fEventOut) {
-            fEventOut << "# eventID trackID  Z  A  Ek_eV   x_mm  y_mm  z_mm  "
-                << "ux  uy  uz\n";
+        std::ofstream out(filename, std::ios::out);
+        if (!out) {
+            G4Exception(
+                "PkaRecorder::WriteToFile",
+                "PKA_FILE_OPEN_FAIL",
+                FatalException,
+                ("Cannot open file " + filename).c_str()
+            );
+            return;
         }
+
+        // header
+        out << "# eventID trackID  Z  A  Ek_eV   x_mm  y_mm  z_mm  "
+            << "ux  uy  uz   \n";
+
+        // 写所有记录
+        for (const auto& h : fHits) {
+            out << h.eventID << " "
+                << h.trackID << " "
+                << h.Z << " " << h.A << " "
+                << h.Ek_eV << " "
+                << h.pos.x() / mm << " "
+                << h.pos.y() / mm << " "
+                << h.pos.z() / mm << " "
+                << h.dir.x() << " "
+                << h.dir.y() << " "
+                << h.dir.z() << " "
+                 << "\n";
+        }
+
+        out.close();
+
+        // 如果一个 run 结束后不再用这些数据，可以清空释放内存
+        fHits.clear();
+        fHits.shrink_to_fit(); // 真的想省内存的话可以加，不加也行
     }
-
-    void PkaRecorder::CloseEventFile()
-    {
-        if (fEventOut.is_open()) {
-            fEventOut.flush();
-            fEventOut.close();
-        }
-    }
-
-    void PkaRecorder::RecordPka(const G4Track* track)
-    {
-        // 如果这个线程还没打开文件，就打开一个
-        if (!fEventOut.is_open()) {
-            OpenEventFile("pka");   // 每个线程会打开 pka_T<tid>.dat
-        }
-
-        // 下面和你原来的一样，只是去掉了锁
-        const auto* pd = track->GetDefinition();
-        G4int Z = pd->GetAtomicNumber();
-        G4int A = pd->GetAtomicMass();
-
-        G4double Ek = track->GetKineticEnergy();   // MeV
-        G4ThreeVector pos = track->GetPosition();  // mm
-        G4ThreeVector dir = track->GetMomentumDirection();
-
-        auto runManager = G4RunManager::GetRunManager();
-        G4int eventID = -1;
-        if (runManager && runManager->GetCurrentEvent()) {
-            eventID = runManager->GetCurrentEvent()->GetEventID();
-        }
-
-        G4int trackID = track->GetTrackID();
-        G4double Ek_eV = Ek / eV;
-
-        // ... 如果你还要算 ix,iy,iz，这里照旧 ...
-        // 略去体素代码，只保留简单输出：
-
-        fEventOut << eventID << " "
-            << trackID << " "
-            << Z << " " << A << " "
-            << Ek_eV << " "
-            << pos.x() / mm << " "
-            << pos.y() / mm << " "
-            << pos.z() / mm << " "
-            << dir.x() << " "
-            << dir.y() << " "
-            << dir.z() << "\n";
-    }
-
 }

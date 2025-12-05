@@ -5,7 +5,7 @@
 #include "globals.hh"
 #include "G4ThreeVector.hh"
 #include <fstream>
-
+#include <vector>
 class G4Track;
 namespace B1 {
     // 简单单例，用来记录 PKA 事件
@@ -18,15 +18,12 @@ namespace B1 {
         void InitializeGrid(G4int nx, G4int ny, G4int nz,
             G4double envX, G4double envY, G4double envZ);
 
-        // 在 RunAction::BeginOfRunAction 里打开文件
-        void OpenEventFile(const G4String& filename);
-
-        // 在 RunAction::EndOfRunAction 里关闭文件
-        void CloseEventFile();
+   
 
         // 在 TrackingAction 里发现一个 PKA 时调用
         void RecordPka(const G4Track* track);
-
+        //最后再写的成员函数
+        void WriteToFile(const G4String& baseName = "pka");
     private:
         PkaRecorder();
         ~PkaRecorder();
@@ -44,8 +41,19 @@ namespace B1 {
         // 线程局部的实例指针声明
         static G4ThreadLocal PkaRecorder* fgInstance;
 
+        struct PkaHit {
+            G4int eventID = -1;
+            G4int trackID = -1;
+            G4int Z = 0;
+            G4int A = 0;
+            G4double Ek_eV = 0.0;
+            G4ThreeVector pos;  // mm
+            G4ThreeVector dir;  // 方向 
+        };
         // 写 PKA 事件的输出文件
-        std::ofstream fEventOut;
+        //std::ofstream fEventOut;
+        //用vector来缓存pka计算结果，最后再输出
+        std::vector<PkaHit> fHits;
     };
 }
 #endif
