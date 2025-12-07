@@ -25,7 +25,7 @@ namespace B1 {
         return fgInstance;
     }
 
-    PkaRecorder::PkaRecorder() {}
+    PkaRecorder::PkaRecorder() { fHits.reserve(10000); }
 
     PkaRecorder::~PkaRecorder()
     {

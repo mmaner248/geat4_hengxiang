@@ -130,11 +130,12 @@ void RunAction::EndOfRunAction(const G4Run* run)
 	  G4double eden = (edep/eV) / (volcell*1e18); // energy density (ev/nm^3)
 	  dose[i] = edep / mass; // default gray
 	  // rmsdose[i] = rms / mass;
+      /*
 	  pbond1[i] = pow(1. - exp(-eden / epsilonbond1), m); // assume there is only one bond in a cubic nanometer
 	  pbond2[i] = pow(1. - exp(-eden / epsilonbond2), m); // hit model
 	  pbond3[i] = pow(1. - exp(-eden / epsilonbond3), m);
 	  pbond4[i] = pow(1. - exp(-eden / epsilonbond4), m);
-	  pbond5[i] = pow(1. - exp(-eden / epsilonbond5), m);
+	  pbond5[i] = pow(1. - exp(-eden / epsilonbond5), m);*/
   }
   // Run conditions
   // note: There is no primary generator action object for "master"
@@ -156,7 +157,7 @@ void RunAction::EndOfRunAction(const G4Run* run)
 	std::ofstream outfile;
   if (IsMaster()) {
 	G4cout<<" zzw " << nofEvents <<G4endl;
-  	outfile.open("build\\shimo.txt");
+  	outfile.open("shimo.txt");
     G4cout
      << G4endl
      << "--------------------End of Global Run-----------------------";
