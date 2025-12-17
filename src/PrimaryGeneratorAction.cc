@@ -74,42 +74,7 @@ PrimaryGeneratorAction::~PrimaryGeneratorAction()
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 {
-  // this function is called at the begining of ecah event
-  // particles are selected randomly
-  /*
-  G4ParticleDefinition* particle;
-  if (fRandomizePrimary)
-  {
-    auto i = (int)(4. * G4UniformRand());
-    switch (i)
-    {
-    case 0:
-      particle = fBeta;
-      break;
-    case 1:
-      particle = fGamma;
-      break;
-    case 2:
-      particle = fNeutron;
-      break;
-    case 3:
-      particle = fProton;
-      break;
-    default:
-      particle = fGamma;
-      break;
-    }
-    fParticleGun->SetParticleDefinition(particle);
-  }
-  else
-  {
-    particle = fParticleGun->GetParticleDefinition();
-  }
-  */
 
-  // In order to avoid dependence of PrimaryGeneratorAction
-  // on DetectorConstruction class we get world and cells volume
-  // from G4LogicalVolumeStore.
   G4double x0 = 0., y0 = 0., z0 = 0.; // half size of worldbox
   G4double x1 = 0., y1 = 0., z1 = 0.; // half size of cellbox
   if (!fworldBox) {
@@ -122,33 +87,17 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
     y0 = fworldBox->GetYHalfLength();
     z0 = fworldBox->GetZHalfLength();
   }
-  if (!fcellBox)
-  {
-    G4LogicalVolume* cellLV
-      = G4LogicalVolumeStore::GetInstance()->GetVolume("logicalcell");
-    if (cellLV) fcellBox = dynamic_cast<G4Box*>(cellLV->GetSolid());
-  }
-  if (fcellBox)
-  {
-    x1 = fcellBox->GetXHalfLength();
-    y1 = fcellBox->GetYHalfLength();
-    z1 = fcellBox->GetZHalfLength();
-  }
+
 
   x1 = nx*x1,y1 = ny*y1,z1 = nz*z1;
-  ftheta = std::atan(x1/z0)* CLHEP::rad;
-  fphi = std::atan(y1/z0)* CLHEP::rad;
+  ftheta = 6.28* CLHEP::rad;
+  fphi = 6.28* CLHEP::rad;
   auto theta = (2*G4UniformRand()-1)*ftheta; //(-1,1)*ftheta
   auto phi = (2*G4UniformRand()-1)*fphi; // (-1,1)*fphi
   // G4double xp = x0*(2.*G4UniformRand()-1.); // -10~10
   // G4double yp = y0*(2.*G4UniformRand()-1.); // -10~10
   fParticleGun->SetParticlePosition(G4ThreeVector(0.,0.,-0.8*z0));// point source
-  /*if (sqrt(xp*xp+yp*yp)<=0.5*z0)
-  {
-    fParticleGun->SetParticlePosition(G4ThreeVector(xp,yp,-z0));// plane source
-  }*/
-  /*fParticleGun->SetParticleMomentumDirection(
-    G4ThreeVector(std::cos(phi) * std::sin(theta), std::sin(phi), std::cos(phi) * std::cos(theta)));*/
+
   G4ThreeVector dir(std::sin(theta) * std::cos(phi),
       std::sin(theta) * std::sin(phi),
       std::cos(theta));

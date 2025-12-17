@@ -73,108 +73,34 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
   // Option to switch on/off checking of volumes overlaps
   //
-  G4bool checkOverlaps = true;
+  G4bool checkOverlaps = false;
 
-  //
-  // World
-  //
-  G4double world_sizeX = 6.*env_sizeX;
-  G4double world_sizeY = 6.*env_sizeY;
-  G4double world_sizeZ = 6.*env_sizeZ;
-  G4Material* world_mat = nist->FindOrBuildMaterial("G4_AIR");
+  // ===== World: air, 6 cm cube =====
+  auto world_mat = nist->FindOrBuildMaterial("G4_AIR");
+  const G4double worldSize = 6.0 * cm;
 
+  auto solidWorld = new G4Box("World", 0.5 * worldSize, 0.5 * worldSize, 0.5 * worldSize);
+  auto logicWorld = new G4LogicalVolume(solidWorld, world_mat, "World");
+  auto physWorld = new G4PVPlacement(nullptr, {}, logicWorld, "World",
+      nullptr, false, 0, checkOverlaps);
 
+  // ===== Graphite block: 1 cm cube (scoring volume) =====
+  auto graphite = nist->FindOrBuildMaterial("G4_GRAPHITE");
+  const G4double boxSize = 1.0 * cm;
 
+  auto solidBox = new G4Box("GraphiteBox", 0.5 * boxSize, 0.5 * boxSize, 0.5 * boxSize);
+  fScoringVolume = new G4LogicalVolume(solidBox, shimo, "GraphiteBoxLV");
+  new G4PVPlacement(nullptr, {}, fScoringVolume, "GraphiteBoxPV",
+      logicWorld, false, 0, checkOverlaps);
 
+  // ===== Step limit: reduce cross-cell smearing =====
+  const G4double dx = boxSize / nx;
+  const G4double dy = boxSize / ny;
+  const G4double dz = boxSize / nz;
+  const G4double maxStep = 0.5 * std::min(dx, std::min(dy, dz));
 
-  auto solidWorld = new G4Box("World",                           // its name
-    0.5 * world_sizeX, 0.5 * world_sizeY, 0.5 * world_sizeZ);  // its size
-
-  auto logicWorld = new G4LogicalVolume(solidWorld,  // its solid
-    world_mat,                                       // its material
-    "World");                                        // its name
-
-  auto physWorld = new G4PVPlacement(nullptr,  // no rotation
-    G4ThreeVector(),                           // at (0,0,0)
-    logicWorld,                                // its logical volume
-    "World",                                   // its name
-    nullptr,                                   // its mother  volume
-    false,                                     // no boolean operation
-    0,                                         // copy number
-    checkOverlaps);                            // overlaps checking
-
-
-  //建一个六棱柱
-  G4String name = "HexPrism";
-  G4double pistart = 0.0;
-  G4double piend = twopi;
-  G4int numSide = 6;
-  G4double sideLength = 0.5 * cm;
-  G4double apothem = sideLength * std::sqrt(3.0) / 2.0;//六边形的内切圆半径
-  G4double halfH = 1.0 * cm;//高度的一半
-  G4int numZ = 2;//2个z截面确定棱柱形状
-  G4double z_hex[] = { -halfH, halfH };//上下截面的z坐标，高度2*halfH
-  G4double rin[] = { 0.0, 0.0 };//实心棱柱-内部内切圆0
-  G4double rout[] = { apothem, apothem };//外部内切圆半径
-  auto hexsolid = new G4Polyhedra(name, pistart, piend, numSide, numZ, z_hex, rin, rout);
-  auto hexlogical = new G4LogicalVolume(hexsolid, shimo, "HexPrism");
-  G4double pianyi = 1.5 * cm;
-  auto physhex = new G4PVPlacement(nullptr,  // no rotation
-      G4ThreeVector(0,0,pianyi),                           // at (0,0,0)
-      hexlogical,                                // its logical volume
-      "HexPrism",                                   // its name
-      logicWorld,                                   // its mother  volume
-      false,                                     // no boolean operation
-      0,                                         // copy number
-      checkOverlaps);                            // overlaps checking
-  //
-  // Envelope
-  //
-  // divide up envlope
-  G4double cell_sizeX = env_sizeX/nx;
-  G4double cell_sizeY = env_sizeY/ny;
-  G4double cell_sizeZ = env_sizeZ/nz;
-  // 告诉 PkaRecorder 网格信息
-  PkaRecorder::Instance()->InitializeGrid(nx, ny, nz,env_sizeX, env_sizeY, env_sizeZ);
-  // its solid volume
-  auto solidcell = new G4Box("solidcell",                    // its name
-      0.5 * cell_sizeX, 0.5 * cell_sizeY, 0.5 * cell_sizeZ);  // its size
-  /*auto solidcell = new G4Tubs("solidcell",                    // its name
-    0., 0.5 * env_sizeX, 0.5 * env_sizeZ, 0., CLHEP::twopi);  // its size*/
-  // its logical volume(array will cause core dumped)
-  auto logicalcell =
-    new G4LogicalVolume(solidcell, shimo, "logicalcell", nullptr, nullptr, nullptr);
-
-  for (G4int iz = 0; iz < nz; iz++) {
-    for (G4int copyNo = iz*nxy; copyNo < (iz+1)*nxy; copyNo++) {
-      G4int col = (copyNo-iz*nxy)/ny;
-      G4int row = (copyNo-iz*nxy)%ny;
-      fXCell[copyNo] = (col+1-G4double(nx)/2)*cell_sizeX - cell_sizeX/2;
-      fYCell[copyNo] = (row+1-G4double(ny)/2)*cell_sizeY - cell_sizeY/2;
-      fZCell[copyNo] = (iz+1-G4double(nz)/2) *cell_sizeZ - cell_sizeZ/2;
-
-      new G4PVPlacement(nullptr,  // no rotation
-        G4ThreeVector(fXCell[copyNo], fYCell[copyNo], fZCell[copyNo]),   // at (x,y,z)
-        logicalcell,          // its logical volume
-        "physicalcell",  // its name
-        logicWorld,       // its mother  volume
-        false,           // no boolean operations
-        copyNo,              // copy number
-        checkOverlaps);  // checking overlaps
-    }
-  }
-  G4double maxStep = 0.5*cell_sizeZ;
-  // G4double maxStep = 0.5*env_sizeZ/nz;
   fStepLimit = new G4UserLimits(maxStep);
-  logicalcell->SetUserLimits(fStepLimit);
-  // scoring volume
-  fScoringVolume = logicalcell;
-  // print cell's location
-  //for (G4int i0 = 0; i0 < Cells; i0++){
-  //  G4cout<<" copyNo "<<" x "<<fXCell[i0]/cm<<" y "<<fYCell[i0]/cm<<" z "<<fZCell[i0]/cm<<G4endl;
-  //}
-  //always return the physical World
-  
+  fScoringVolume->SetUserLimits(fStepLimit);
 
   return physWorld;
 }

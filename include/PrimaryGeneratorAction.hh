@@ -72,7 +72,7 @@ class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
     G4double ftheta = 0.;
     G4bool fRandomizePrimary = true;
     G4Box* fworldBox = nullptr;
-    G4Box* fcellBox = nullptr;
+    
 };
 
 }

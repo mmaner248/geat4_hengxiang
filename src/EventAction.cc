@@ -48,26 +48,21 @@ void EventAction::BeginOfEventAction(const G4Event*)
 {
   for (G4int i = 0; i < Cells;i++){
     fEdep[i] = 0.;
-    /*fEdepeIoni[i] = 0.;
-    fEdepeBrem[i] = 0.;
-    fEdepmsc[i] = 0.;
-    fEdepcompt[i] = 0.;
-    fEdepphot[i] = 0.;*/
   }
   //fEdepold = 0.;
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
+void EventAction::AddEdep(G4double edep, G4int cellId)
+{
+    if (cellId < 0 || cellId >= Cells) return;
+    fEdep[cellId] += edep;
+}
 void EventAction::EndOfEventAction(const G4Event*)
 {
   // accumulate statistics in run action
-  fRunAction->AddEdep(fEdep);
-  /*fRunAction->AddEdepeIoni(fEdepeIoni);
-  fRunAction->AddEdepeBrem(fEdepeBrem);
-  fRunAction->AddEdepmsc(fEdepmsc);
-  fRunAction->AddEdepcompt(fEdepcompt);
-  fRunAction->AddEdepphot(fEdepphot);*/
+    if (fRunAction) fRunAction->AddEdep(fEdep);
+
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

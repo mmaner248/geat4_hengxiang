@@ -66,12 +66,7 @@ RunAction::RunAction()
   G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
   for (G4int i = 0; i < Cells;i++){
     accumulableManager->RegisterAccumulable(fEdep[i]);
-  	// accumulableManager->RegisterAccumulable(fEdep2[i]);
-    /*accumulableManager->RegisterAccumulable(fEdepeIoni[i]);
-    accumulableManager->RegisterAccumulable(fEdepeBrem[i]);
-    accumulableManager->RegisterAccumulable(fEdepmsc[i]);
-    accumulableManager->RegisterAccumulable(fEdepcompt[i]);
-    accumulableManager->RegisterAccumulable(fEdepphot[i]);*/
+
   }
 }
 
@@ -92,107 +87,60 @@ void RunAction::BeginOfRunAction(const G4Run*)
 
 void RunAction::EndOfRunAction(const G4Run* run)
 {
-  G4int nofEvents = run->GetNumberOfEvent();
-  if (nofEvents == 0) return;
+    const G4int nofEvents = run->GetNumberOfEvent();
+    if (nofEvents == 0) return;
 
-  // Merge accumulables
-  G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
-  accumulableManager->Merge();
+    auto* accum = G4AccumulableManager::Instance();
+    accum->Merge();
 
-  G4double xcell = 0., ycell = 0., zcell = 0., volcell = 0.; // half size of cellbox
-  if (!fcellBox) {
-    G4LogicalVolume* cellLV
-        = G4LogicalVolumeStore::GetInstance()->GetVolume("logicalcell");
-    if ( cellLV ) fcellBox = dynamic_cast<G4Box*>(cellLV->GetSolid());
-  }
-  if (fcellBox) {
-    xcell = fcellBox->GetXHalfLength(); //default mm
-    ycell = fcellBox->GetYHalfLength(); //default mm
-    zcell = fcellBox->GetZHalfLength(); //default mm
-	volcell = fcellBox->GetCubicVolume(); // mm^3
-  }
+    // grid geometry (virtual)
+    const G4double boxSize = 1.0 * cm;
+    const G4double dx = boxSize / nx;
+    const G4double dy = boxSize / ny;
+    const G4double dz = boxSize / nz;
+    const G4double volcell = dx * dy * dz; // (internal unit) ~ mm^3
 
-  // Compute dose = total energy deposit in a run and its variance
-  // dose and its variance in every element
-  for (G4int i = 0; i < Cells; i++)
-  {
-	  G4double edep = fEdep[i].GetValue(); // default MeV
-	  // G4double edep2 = fEdep2[i].GetValue();
+    const auto det = static_cast<const DetectorConstruction*>(
+        G4RunManager::GetRunManager()->GetUserDetectorConstruction());
 
-	  /*G4double rms = edep2 - edep * edep / nofEvents;
-	  if (rms > 0.) rms = std::sqrt(rms);
-	  else rms = 0.;*/
+    const G4double massTotal = det->GetScoringVolume()->GetMass();
+    const G4double massCell = massTotal / Cells;
 
-	  const auto detConstruction = static_cast<const DetectorConstruction*>(
-		  G4RunManager::GetRunManager()->GetUserDetectorConstruction());
-	  G4double mass = detConstruction->GetScoringVolume()->GetMass(); // total mass
+    for (G4int i = 0; i < Cells; i++) {
+        const G4double edep = fEdep[i].GetValue(); // MeV
+        dose[i] = edep / massCell;                // Gy
+        // 如果你还要能量密度 eV/nm^3：
+        // const G4double vol_nm3 = (volcell/mm3) * 1e18;
+        // eden[i] = (edep/eV) / vol_nm3;
+    }
 
-	  G4double eden = (edep/eV) / (volcell*1e18); // energy density (ev/nm^3)
-	  dose[i] = edep / mass; // default gray
-	  // rmsdose[i] = rms / mass;
-      /*
-	  pbond1[i] = pow(1. - exp(-eden / epsilonbond1), m); // assume there is only one bond in a cubic nanometer
-	  pbond2[i] = pow(1. - exp(-eden / epsilonbond2), m); // hit model
-	  pbond3[i] = pow(1. - exp(-eden / epsilonbond3), m);
-	  pbond4[i] = pow(1. - exp(-eden / epsilonbond4), m);
-	  pbond5[i] = pow(1. - exp(-eden / epsilonbond5), m);*/
-  }
-  // Run conditions
-  // note: There is no primary generator action object for "master"
-  //       run manager for multi-threaded mode.
-  /*const auto generatorAction = static_cast<const PrimaryGeneratorAction*>(
-    G4RunManager::GetRunManager()->GetUserPrimaryGeneratorAction());
-  G4String runCondition;
-  if (generatorAction)
-  {
-    const G4ParticleGun* particleGun = generatorAction->GetParticleGun();
-    runCondition += particleGun->GetParticleDefinition()->GetParticleName();
-    runCondition += " of ";
-    G4double particleEnergy = particleGun->GetParticleEnergy();
-    runCondition += G4BestUnit(particleEnergy,"Energy");
-  }*/
+    if (IsMaster()) {
+        std::ofstream outfile("shimo.txt");
+        outfile << std::setprecision(10);
 
-  // Print
-  // output to an external file
-	std::ofstream outfile;
-  if (IsMaster()) {
-	G4cout<<" zzw " << nofEvents <<G4endl;
-  	outfile.open("shimo.txt");
-    G4cout
-     << G4endl
-     << "--------------------End of Global Run-----------------------";
-  	for (G4int copyNo=0;copyNo<Cells;copyNo++) {
-    	outfile << std::setprecision(8); // eight significant digits are resevred
-       	//<< G4endl
-       	//<< " The run consists of " << nofEvents << " "<< runCondition
-       	//<< G4endl
-		outfile
-       	<< " Energy deposited "
-       	//<< G4BestUnit(dose,"Dose") << " rms = " << G4BestUnit(rmsDose,"Dose")
-       	<< fEdep[copyNo].GetValue()/MeV << " Absorbed dose "
-       	<< dose[copyNo]   //<< " Probabilityqj "
-  		//<< pbond1[copyNo] << " Probabilityty1 "
-  		//<< pbond2[copyNo] << " Probabilitybm "
-  		//<< pbond3[copyNo] << " Probabilitycc "
-  		//<< pbond4[copyNo] << " Probabilityty2 "
-  		//<< pbond5[copyNo]
-        /*<< fEdepeIoni[copyNo].GetValue()/MeV << " eBrem "
-        << fEdepeBrem[copyNo].GetValue()/MeV << " msc "
-        << fEdepmsc[copyNo].GetValue()/MeV << " compt "
-        << fEdepcompt[copyNo].GetValue()/keV << " phot "
-        << fEdepphot[copyNo].GetValue()/keV*/
-       	<< G4endl;
-  	}
-  }
-	outfile.close();
+        for (G4int cellId = 0; cellId < Cells; cellId++) {
+            const G4double edepMeV = fEdep[cellId].GetValue() / MeV;
+
+            // 还原 ix/iy/iz（便于后处理画 3D）
+            const int iz = cellId / (nx * ny);
+            const int rem = cellId - iz * (nx * ny);
+            const int iy = rem / nx;
+            const int ix = rem - iy * nx;
+
+            outfile
+                << ix << " " << iy << " " << iz << " "
+                << "Edep(MeV) " << edepMeV << " "
+                << "Dose(Gy) " << dose[cellId]
+                << "\n";
+
+        }
+        outfile.close();
+    }
+	
 
     //run完在各个工作线程单例里面把结果写了
     if (G4Threading::IsWorkerThread()) PkaRecorder::Instance()->WriteToFile("pka");
-  //else {
-  //  G4cout
-  //   << G4endl
-  //   << "--------------------End of Local Run------------------------";
-  //}
+
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -203,42 +151,6 @@ void RunAction::AddEdep(G4double *edep)
   	fEdep[copyNo]  += edep[copyNo];
   	// fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
   }
-}/*
-void RunAction::AddEdepeIoni(G4double *edep)
-{
-  for (G4int copyNo=0;copyNo<nxz;copyNo++) {
-  	fEdepeIoni[copyNo]  += edep[copyNo];
-  	//fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
-  }
 }
-void RunAction::AddEdepeBrem(G4double *edep)
-{
-  for (G4int copyNo=0;copyNo<nxz;copyNo++) {
-  	fEdepeBrem[copyNo]  += edep[copyNo];
-  	//fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
-  }
-}
-void RunAction::AddEdepmsc(G4double *edep)
-{
-  for (G4int copyNo=0;copyNo<nxz;copyNo++) {
-  	fEdepmsc[copyNo]  += edep[copyNo];
-  	//fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
-  }
-}
-void RunAction::AddEdepcompt(G4double *edep)
-{
-  for (G4int copyNo=0;copyNo<nxz;copyNo++) {
-  	fEdepcompt[copyNo]  += edep[copyNo];
-  	//fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
-  }
-}
-void RunAction::AddEdepphot(G4double *edep)
-{
-  for (G4int copyNo=0;copyNo<nxz;copyNo++) {
-  	fEdepphot[copyNo]  += edep[copyNo];
-  	//fEdep2[copyNo] += edep[copyNo]*edep[copyNo];
-  }
-}*/
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 }

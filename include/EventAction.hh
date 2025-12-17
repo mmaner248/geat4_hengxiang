@@ -50,7 +50,7 @@ class EventAction : public G4UserEventAction
     void BeginOfEventAction(const G4Event* event) override;
     void EndOfEventAction(const G4Event* event) override;
 
-    void AddEdep(G4double edep,G4int copyNo) { fEdep[copyNo] += edep; }
+    void AddEdep(G4double edep, G4int copyNo);
     /*
     void AddEdepeIoni(G4double edep,G4int copyNo) { fEdepeIoni[copyNo] += edep; }
     void AddEdepeBrem(G4double edep,G4int copyNo) { fEdepeBrem[copyNo] += edep; }
