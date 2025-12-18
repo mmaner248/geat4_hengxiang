@@ -116,7 +116,9 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
         G4int Z = pd->GetAtomicNumber();
         if (Z != 6) continue;
         if (secTr->GetKineticEnergy() < 100 * eV) continue;
-
+        auto pos = secTr->GetPosition();
+        if ((pos.x() * pos.x() + pos.y() * pos.y() + pos.z() * pos.z()) > (0.05 * mm * 0.05 * mm))
+            continue;
         const auto* cproc = secTr->GetCreatorProcess();
         if (!cproc) continue;
 

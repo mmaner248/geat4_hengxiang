@@ -96,7 +96,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
   auto phi = (2*G4UniformRand()-1)*fphi; // (-1,1)*fphi
   // G4double xp = x0*(2.*G4UniformRand()-1.); // -10~10
   // G4double yp = y0*(2.*G4UniformRand()-1.); // -10~10
-  fParticleGun->SetParticlePosition(G4ThreeVector(0.,0.,-0.8*z0));// point source
+  fParticleGun->SetParticlePosition(G4ThreeVector(0.,0.,-0.5*z0));// point source
 
   G4ThreeVector dir(std::sin(theta) * std::cos(phi),
       std::sin(theta) * std::sin(phi),
