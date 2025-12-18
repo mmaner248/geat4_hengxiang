@@ -49,43 +49,7 @@ SteppingAction::SteppingAction(EventAction* eventAction)
 
 void SteppingAction::UserSteppingAction(const G4Step* step)
 {
-    
-    const G4Track* tr = step->GetTrack();
-    //如果按照严格的pka定义，那只考虑中子第一次碰撞的C原子，那就需要加下面一句把track直接限定在入射
-    // if (tr->GetParentID() != 0) return;
-    // 但是我这里记录的是中子碰撞导致的所有可能引发后续级联的种子
-    // 所以先注释掉
-    
-    // 只处理中子这条track的每一步
-    if (tr->GetDefinition()->GetParticleName() != "neutron") return;
-
-
-    // 只在“有物理过程发生”时看本步产生的二次粒子
-    if (!step->GetPostStepPoint()->GetProcessDefinedStep()) return;
-    auto* p = step->GetPostStepPoint()->GetProcessDefinedStep();
-    auto name = p->GetProcessName();
-    if (name == "Transportation" || name == "StepLimiter") return;
-
-    const auto* secs = step->GetSecondaryInCurrentStep();
-    if (!secs) return;
-
-    for (const auto* secTr : *secs)
-    {
-
-        const auto* pd = secTr->GetDefinition();
-        G4int Z = pd->GetAtomicNumber();
-        if (Z !=6) continue;                // 只要反冲核
-        if (secTr->GetKineticEnergy() < 100 * eV) continue;  // 阈值
-
-        const auto* cproc = secTr->GetCreatorProcess();
-        if (!cproc) continue;
-
-        const auto& cname = cproc->GetProcessName();
-        if (cname != "hadElastic") continue;
-
-        // 这里的 secTr 就是“由中子这一步产生的第一代反冲”
-        PkaRecorder::Instance()->RecordPka(secTr);
-    }
+    // ========= 1) Energy deposition scoring (independent) =========
     if (!fScoringVolume) {
         const auto detConstruction = static_cast<const DetectorConstruction*>(
             G4RunManager::GetRunManager()->GetUserDetectorConstruction());
@@ -95,46 +59,72 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     auto volume = step->GetPreStepPoint()->GetTouchableHandle()
         ->GetVolume()->GetLogicalVolume();
 
-    if (volume != fScoringVolume) return;
+    if (volume == fScoringVolume) {
+        const G4double edepStep = step->GetTotalEnergyDeposit();
+        if (edepStep > 0.) {
+            const G4ThreeVector prePoint = step->GetPreStepPoint()->GetPosition();
+            const G4ThreeVector postPoint = step->GetPostStepPoint()->GetPosition();
 
-    const G4double edepStep = step->GetTotalEnergyDeposit();
-    if (edepStep <= 0.) return;
+            G4ThreeVector point = prePoint + G4UniformRand() * (postPoint - prePoint);
+            if (step->GetTrack()->GetDefinition()->GetPDGCharge() == 0) point = postPoint;
 
-    const G4ThreeVector prePoint = step->GetPreStepPoint()->GetPosition();
-    const G4ThreeVector postPoint = step->GetPostStepPoint()->GetPosition();
+            // 网格映射逻辑
+            const G4double boxSize = 1.0 * cm;
+            const G4double half = 0.5 * boxSize;
 
-    G4ThreeVector point = prePoint + G4UniformRand() * (postPoint - prePoint);
-    if (step->GetTrack()->GetDefinition()->GetPDGCharge() == 0) point = postPoint;
+            const G4double dx = boxSize / nx;
+            const G4double dy = boxSize / ny;
+            const G4double dz = boxSize / nz;
 
-    // ===== Map world position -> virtual grid cellId inside 1cm graphite cube at origin =====
-    const G4double boxSize = 1.0 * cm;
-    const G4double half = 0.5 * boxSize;
+            const G4double x = point.x() + half;
+            const G4double y = point.y() + half;
+            const G4double z = point.z() + half;
 
-    const G4double dx = boxSize / nx;
-    const G4double dy = boxSize / ny;
-    const G4double dz = boxSize / nz;
+            if (!(x < 0 || x >= boxSize || y < 0 || y >= boxSize || z < 0 || z >= boxSize)) {
+                int ix = (int)(x / dx);
+                int iy = (int)(y / dy);
+                int iz = (int)(z / dz);
 
-    const G4double x = point.x() + half;
-    const G4double y = point.y() + half;
-    const G4double z = point.z() + half;
+                if (ix < 0) ix = 0; else if (ix >= nx) ix = nx - 1;
+                if (iy < 0) iy = 0; else if (iy >= ny) iy = ny - 1;
+                if (iz < 0) iz = 0; else if (iz >= nz) iz = nz - 1;
 
-    if (x < 0 || x >= boxSize || y < 0 || y >= boxSize || z < 0 || z >= boxSize) return;
+                const int cellId = ix + nx * (iy + ny * iz);
+                fEventAction->AddEdep(edepStep, cellId);
+            }
+        }
+    }
 
-    int ix = (int)(x / dx);
-    int iy = (int)(y / dy);
-    int iz = (int)(z / dz);
+    // ========= 2) PKA recording (neutron-only logic) =========
+    const G4Track* tr = step->GetTrack();
+    if (tr->GetDefinition()->GetParticleName() != "neutron") return;
 
-    // clamp (defensive)
-    if (ix < 0) ix = 0; else if (ix >= nx) ix = nx - 1;
-    if (iy < 0) iy = 0; else if (iy >= ny) iy = ny - 1;
-    if (iz < 0) iz = 0; else if (iz >= nz) iz = nz - 1;
+    // 严格 primary neutron：只保留 ParentID==0 的中子 track
+    // if (tr->GetParentID() != 0) return;
 
-    const int cellId = ix + nx * (iy + ny * iz);
+    auto* p = step->GetPostStepPoint()->GetProcessDefinedStep();
+    if (!p) return;
 
-    fEventAction->AddEdep(edepStep, cellId);
+    auto name = p->GetProcessName();
+    if (name == "Transportation" || name == "StepLimiter") return;
 
+    const auto* secs = step->GetSecondaryInCurrentStep();
+    if (!secs) return;
 
+    for (const auto* secTr : *secs) {
+        const auto* pd = secTr->GetDefinition();
+        G4int Z = pd->GetAtomicNumber();
+        if (Z != 6) continue;
+        if (secTr->GetKineticEnergy() < 100 * eV) continue;
 
+        const auto* cproc = secTr->GetCreatorProcess();
+        if (!cproc) continue;
+
+        const auto& cname = cproc->GetProcessName();
+        if (cname != "hadElastic") continue;
+
+        PkaRecorder::Instance()->RecordPka(secTr);
+    }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
