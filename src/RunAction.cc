@@ -153,4 +153,10 @@ void RunAction::AddEdep(G4double *edep)
   }
 }
 
+void RunAction::AddEdep(G4double edep, G4int cellId)
+{
+    if (cellId < 0 || cellId >= Cells) return;
+    fEdep[cellId] += edep;   // 直接累加到 accumulable
+}
+
 }

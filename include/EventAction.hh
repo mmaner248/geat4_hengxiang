@@ -29,7 +29,7 @@
 
 #ifndef B1EventAction_h
 #define B1EventAction_h 1
-
+#include <vector>
 #include "G4UserEventAction.hh"
 #include "globals.hh"
 #include "Constants.hh"
@@ -64,7 +64,8 @@ class EventAction : public G4UserEventAction
   private:
     RunAction* fRunAction = nullptr;
     //G4double   fEdepold = 0.; // for test multi thread
-	  G4double   fEdep[Cells] = {0.}; // size of array depends on the mesh (plane/body)
+    std::vector<G4double>   fEdep; 
+    std::vector<G4int>   fEID;
     /*G4double   fEdepeIoni[nxz] = {0.};
     G4double   fEdepeBrem[nxz] = {0.};
     G4double   fEdepmsc[nxz] = {0.};

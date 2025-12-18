@@ -57,6 +57,7 @@ class RunAction : public G4UserRunAction
     void   EndOfRunAction(const G4Run*) override;
 
     void AddEdep (G4double *edep);
+	void AddEdep(G4double edep, G4int cellId);
 	/*void AddEdepeIoni (G4double *edep);
 	void AddEdepeBrem (G4double *edep);
 	void AddEdepmsc (G4double *edep);

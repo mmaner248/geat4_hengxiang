@@ -71,6 +71,7 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
 
     for (const auto* secTr : *secs)
     {
+
         const auto* pd = secTr->GetDefinition();
         G4int Z = pd->GetAtomicNumber();
         if (Z !=6) continue;                // Ö»Òª·´³åºË

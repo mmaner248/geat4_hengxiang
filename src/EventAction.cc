@@ -46,23 +46,30 @@ EventAction::EventAction(RunAction* runAction)
 
 void EventAction::BeginOfEventAction(const G4Event*)
 {
-  for (G4int i = 0; i < Cells;i++){
-    fEdep[i] = 0.;
-  }
-  //fEdepold = 0.;
+    fEdep.clear();
+    fEID.clear();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 void EventAction::AddEdep(G4double edep, G4int cellId)
 {
     if (cellId < 0 || cellId >= Cells) return;
-    fEdep[cellId] += edep;
+    for (size_t i = 0; i < fEID.size(); ++i) {
+        if (fEID[i] == cellId) {
+            fEdep[i] += edep;
+            return;
+        }
+    }
+    fEID.push_back(cellId);
+    fEdep.push_back(edep);
 }
 void EventAction::EndOfEventAction(const G4Event*)
 {
   // accumulate statistics in run action
-    if (fRunAction) fRunAction->AddEdep(fEdep);
-
+    if (!fRunAction) return;
+    for (size_t i = 0; i < fEID.size(); ++i) {
+        fRunAction->AddEdep(fEdep[i], fEID[i]);
+    }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
