@@ -1,39 +1,24 @@
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
 #ifndef PhysicsList_h
 #define PhysicsList_h 1
 
 #include "G4VModularPhysicsList.hh"
 #include "globals.hh"
 
-class G4VPhysicsConstructor;
-class PhysicsListMessenger;
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
-class PhysicsList: public G4VModularPhysicsList
+class PhysicsList : public G4VModularPhysicsList
 {
 public:
-    PhysicsList();
+    // 你可以把默认改成 "FTFP_BERT_HP" 也行
+    explicit PhysicsList(const G4String& refName = "QGSP_BIC_HP");
     ~PhysicsList() override;
 
     void ConstructParticle() override;
     void ConstructProcess() override;
+    void SetCuts() override;
 
 private:
-
-    G4VPhysicsConstructor*  fEmPhysics  = nullptr;
-    G4VPhysicsConstructor*  fSyGnPhysics  = nullptr;
-    G4VPhysicsConstructor*  fDecayPhysics = nullptr;
-    G4VPhysicsConstructor*  fHadPhysics1 = nullptr;
-    G4VPhysicsConstructor*  fHadPhysics2 = nullptr;
-    G4VPhysicsConstructor*  fHadPhysics3 = nullptr;
-    G4VPhysicsConstructor*  fHadPhysics4 = nullptr;
-    G4VPhysicsConstructor*  fHadPhysics5 = nullptr;
-    G4VPhysicsConstructor*  ftrackingout = nullptr;
+    G4VModularPhysicsList* fRefPL = nullptr; // 参考物理表实例（我们负责 delete）
+    G4String fRefName;
 };
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
 #endif
+

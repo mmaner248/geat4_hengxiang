@@ -1,120 +1,64 @@
 #include "PhysicsList.hh"
 
-#include "G4EmStandardPhysics.hh"
-#include "G4EmStandardPhysics_option1.hh"
-#include "G4EmStandardPhysics_option2.hh"
-#include "G4EmStandardPhysics_option3.hh"
-#include "G4EmStandardPhysics_option4.hh"
-#include "G4EmStandardPhysicsWVI.hh"
-#include "G4EmStandardPhysicsGS.hh"
-#include "G4EmStandardPhysicsSS.hh"
-
-#include "G4EmLivermorePhysics.hh"
-#include "G4EmPenelopePhysics.hh"
-#include "G4EmLowEPPhysics.hh"
-
-
-#include "G4HadronElasticPhysics.hh"
-#include "G4HadronElasticPhysicsXS.hh"
-#include "G4IonPhysicsXS.hh"
-#include "G4IonElasticPhysics.hh"
-#include "G4HadronInelasticQBBC.hh"
-#include "G4NeutronTrackingCut.hh"
-
-#include "G4DecayPhysics.hh"
-#include "G4StoppingPhysics.hh"
-#include "G4EmExtraPhysics.hh"
-
-#include "G4UnitsTable.hh"
+#include "G4PhysListFactory.hh"
 #include "G4SystemOfUnits.hh"
+#include "G4ios.hh"
 
-#include "G4ParticleDefinition.hh"
-#include "G4ProcessManager.hh"
-
-// particles
-
-#include "G4BosonConstructor.hh"
-#include "G4LeptonConstructor.hh"
-#include "G4MesonConstructor.hh"
-#include "G4BosonConstructor.hh"
-#include "G4BaryonConstructor.hh"
-#include "G4IonConstructor.hh"
-#include "G4ShortLivedConstructor.hh"
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
-PhysicsList::PhysicsList()
+PhysicsList::PhysicsList(const G4String& refName)
+    : G4VModularPhysicsList(), fRefName(refName)
 {
+    // 1) 先把你原来的“工程参数”保留：verbosity + 默认 cut
+    SetVerboseLevel(1);
+    SetDefaultCutValue(0.7 * mm);
 
-  SetVerboseLevel(1);
-  SetDefaultCutValue(0.7*mm);
+    // 2) 用工厂拿 Geant4 预定义参考物理表（HP 版）
+    G4PhysListFactory factory;
 
-  // EM physics
-  fEmPhysics = new G4EmStandardPhysics_option4();
+    if (!factory.IsReferencePhysList(fRefName)) {
+        G4cerr << "[PhysicsList] Reference physics list <" << fRefName
+            << "> not found. Fallback to QGSP_BIC_HP.\n";
+        fRefName = "QGSP_BIC_HP";
+    }
 
-  // Decay physics
-  fDecayPhysics = new G4DecayPhysics(1);
+    fRefPL = factory.GetReferencePhysList(fRefName);
+    if (!fRefPL) {
+        G4Exception("PhysicsList::PhysicsList", "PL001", FatalException,
+            "Failed to create reference physics list.");
+    }
 
-  // Synchroton Radiation & GN Physics
-  fSyGnPhysics = new G4EmExtraPhysics();
+    // 3) 让参考物理表也跟随你的 verbosity / cut（cut 我们会在 SetCuts() 再强制一次）
+    fRefPL->SetVerboseLevel(GetVerboseLevel());
+    fRefPL->SetDefaultCutValue(GetDefaultCutValue());
 
-  // Hadron Physics
-  fHadPhysics1 = new G4HadronElasticPhysicsXS();
-
-  fHadPhysics2 = new G4StoppingPhysics();
-
-  fHadPhysics3 = new G4IonPhysicsXS();
-
-  fHadPhysics4 = new G4IonElasticPhysics();
-
-  fHadPhysics5 = new G4HadronInelasticQBBC();
-
-  // Neutron tracking cut
-  ftrackingout = new G4NeutronTrackingCut();
-
+    G4cout << "[PhysicsList] Using reference physics list: " << fRefName << G4endl;
 }
+
 PhysicsList::~PhysicsList()
 {
-  delete fSyGnPhysics;
-  delete ftrackingout;
+    delete fRefPL;
+    fRefPL = nullptr;
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void PhysicsList::ConstructParticle()
 {
-  G4BosonConstructor  pBosonConstructor;
-  pBosonConstructor.ConstructParticle();
-
-  G4LeptonConstructor pLeptonConstructor;
-  pLeptonConstructor.ConstructParticle();
-
-  G4MesonConstructor pMesonConstructor;
-  pMesonConstructor.ConstructParticle();
-
-  G4BaryonConstructor pBaryonConstructor;
-  pBaryonConstructor.ConstructParticle();
-
-  G4IonConstructor pIonConstructor;
-  pIonConstructor.ConstructParticle();
-
-  G4ShortLivedConstructor sLivedConstructor;
-  sLivedConstructor.ConstructParticle();
-
+    // 参考物理表负责注册所有粒子
+    fRefPL->ConstructParticle();
 }
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void PhysicsList::ConstructProcess()
 {
-  AddTransportation();
-  fEmPhysics->ConstructProcess();
-  fDecayPhysics->ConstructProcess();
-  fSyGnPhysics->ConstructProcess();
-  fHadPhysics1->ConstructProcess();
-  fHadPhysics2->ConstructProcess();
-  fHadPhysics3->ConstructProcess();
-  fHadPhysics4->ConstructProcess();
-  fHadPhysics5->ConstructProcess();
-  ftrackingout->ConstructProcess();
+    // 参考物理表负责 AddTransportation + EM/Hadronic/Decay 等过程注册
+    fRefPL->ConstructProcess();
+}
+
+void PhysicsList::SetCuts()
+{
+    // 关键：保留你现在的 0.7 mm，让新旧结果可比
+    fRefPL->SetDefaultCutValue(0.7 * mm);
+
+    // 让参考物理表按它的方式给不同粒子/区域设置 cut
+    fRefPL->SetCuts();
+
+    // 如果你想更“硬核”一点，也可以在这里 print 一下 cut 值（可选）
+    // DumpCutValuesTable();
 }
