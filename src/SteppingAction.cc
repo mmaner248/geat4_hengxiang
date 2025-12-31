@@ -99,7 +99,7 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     const G4Track* tr = step->GetTrack();
     if (tr->GetDefinition()->GetParticleName() != "neutron") return;
 
-    // 严格 primary neutron：只保留 ParentID==0 的中子 track
+    
     // if (tr->GetParentID() != 0) return;
 
     auto* p = step->GetPostStepPoint()->GetProcessDefinedStep();
@@ -112,13 +112,14 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     if (!secs) return;
 
     for (const auto* secTr : *secs) {
+        if (PkaRecorder::Instance()->Sizeofpka() == maxofpka) return;
         const auto* pd = secTr->GetDefinition();
         G4int Z = pd->GetAtomicNumber();
         if (Z != 6) continue;
         if (secTr->GetKineticEnergy() < 100 * eV) continue;
         auto pos = secTr->GetPosition();
-        if ((pos.x() * pos.x() + pos.y() * pos.y() + pos.z() * pos.z()) > (0.05 * mm * 0.05 * mm))
-            continue;
+        //if ((pos.x() * pos.x() + pos.y() * pos.y() + pos.z() * pos.z()) > (0.05 * mm * 0.05 * mm))
+        //    continue;
         const auto* cproc = secTr->GetCreatorProcess();
         if (!cproc) continue;
 
@@ -126,6 +127,7 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
         if (cname != "hadElastic") continue;
 
         PkaRecorder::Instance()->RecordPka(secTr);
+  
     }
 }
 

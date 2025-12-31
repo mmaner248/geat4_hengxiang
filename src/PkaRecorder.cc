@@ -42,7 +42,9 @@ namespace B1 {
         if (ny > 0) fDy = envY / ny;
         if (nz > 0) fDz = envZ / nz;
     }
-
+    int PkaRecorder::Sizeofpka() const{
+        return fHits.size();
+    }
 
 
 

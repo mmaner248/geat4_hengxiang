@@ -10,12 +10,13 @@
 namespace B1
 {
 
-    constexpr G4int nx = 100;
-    constexpr G4int ny = 100;
+    constexpr G4int nx = 150;
+    constexpr G4int ny = 150;
     constexpr G4int nz = 10;
     constexpr G4int nxy = nx*ny;
     constexpr G4int nxz = nx*nz;
     constexpr G4int Cells = nx * ny * nz;
+    constexpr G4int maxofpka = 10000;
 }
 
 #endif //CONSTANTS_H

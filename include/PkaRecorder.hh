@@ -24,6 +24,7 @@ namespace B1 {
         void RecordPka(const G4Track* track);
         //最后再写的成员函数
         void WriteToFile(const G4String& baseName = "pka");
+         int Sizeofpka() const;
     private:
         PkaRecorder();
         ~PkaRecorder();

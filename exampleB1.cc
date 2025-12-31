@@ -1,4 +1,4 @@
-//
+﻿//
 // ********************************************************************
 // * License and Disclaimer                                           *
 // *                                                                  *
@@ -29,6 +29,7 @@
 
 #include "DetectorConstruction.hh"
 #include "ActionInitialization.hh"
+#include "G4ScoringManager.hh"
 
 #include "G4RunManagerFactory.hh"
 #include "G4SteppingVerbose.hh"
@@ -64,7 +65,8 @@ int main(int argc,char** argv)
   //
   auto runManager =
     G4RunManagerFactory::CreateRunManager(G4RunManagerType::Default);
-
+  // enable command-based scoring (/score/...)
+  G4ScoringManager::GetScoringManager();
   // Set mandatory initialization classes
   //
   // Detector construction
